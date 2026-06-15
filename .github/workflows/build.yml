@@ -7,41 +7,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.19.0'
-        
+
     - name: Scaffold Flutter Project 🚀
       run: |
         flutter create vpn_app --org com.exhxx --project-name xray_vpn
         cd vpn_app
         flutter pub add file_picker
+
+    - name: Download & Inject Official Native Xray Core ⚙️
+      run: |
+        # إنشاء مسار المعالجات الحديثة (مثل Infinix GT 30 Pro)
+        mkdir -p vpn_app/android/app/src/main/jniLibs/arm64-v8a
         
-    - name: Inject Exhxx Custom Native Code 💉
+        # تحميل نواة Xray الرسمية المخصصة للأندرويد
+        wget -qO xray.zip "https://github.com/XTLS/Xray-core/releases/download/v1.8.24/Xray-android-arm64-v8a.zip"
+        unzip xray.zip -d xray_temp
+        
+        # الخدعة: تغيير الاسم إلى .so حتى يقبله الأندرويد كملف تنفيذي
+        mv xray_temp/xray vpn_app/android/app/src/main/jniLibs/arm64-v8a/libxraycore.so
+        chmod +x vpn_app/android/app/src/main/jniLibs/arm64-v8a/libxraycore.so
+
+    - name: Inject Exhxx Custom Code 💉
       run: |
         cp custom/lib/main.dart vpn_app/lib/main.dart
-        
-        # حقن أكواد الكوتلن
         mkdir -p vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn
         cp custom/android/MainActivity.kt vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn/
         cp custom/android/XrayVpnService.kt vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn/
-        
-        # حقن ملف التصاريح
         cp custom/android/AndroidManifest.xml vpn_app/android/app/src/main/
-        
+
     - name: Build APK with Flutter
       run: |
         cd vpn_app
         flutter build apk --release
-        
+
     - name: Upload Exhxx Xray APK
       uses: actions/upload-artifact@v4
       with:

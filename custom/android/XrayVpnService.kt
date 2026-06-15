@@ -6,10 +6,11 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.os.Build
 import android.net.ProxyInfo
-import libv2ray.Libv2ray
+import java.io.File
 
 class XrayVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
+    private var xrayProcess: Process? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -26,34 +27,49 @@ class XrayVpnService : VpnService() {
         if (vpnInterface != null) stopVpn()
 
         try {
-            // 1. تشغيل المحرك بالخلفية لفتح بورت 10809
+            // 1. حفظ الكونفيغ المدمج في ملف ليقرأه المحرك
+            val configFile = File(cacheDir, "config.json")
+            configFile.writeText(configJson)
+
+            // 2. تحديد مسار المحرك الأصلي المدمج بالتطبيق
+            val xrayPath = applicationInfo.nativeLibraryDir + "/libxraycore.so"
+            
+            // 3. تشغيل المحرك بقوة النظام (Native Execution)
             Thread {
                 try {
-                    Libv2ray.startV2Ray(configJson)
-                    Log.d("EXHXX_XRAY", "Xray Engine Started on HTTP 10809")
+                    val pb = ProcessBuilder(xrayPath, "-c", configFile.absolutePath)
+                    pb.redirectErrorStream(true)
+                    xrayProcess = pb.start()
+                    Log.d("EXHXX_XRAY", "Native Xray Core Executed Successfully!")
+                    
+                    val reader = xrayProcess?.inputStream?.bufferedReader()
+                    var line: String?
+                    while (reader?.readLine().also { line = it } != null) {
+                        Log.d("EXHXX_XRAY_LOG", line ?: "")
+                    }
                 } catch (e: Exception) {
-                    Log.e("EXHXX_XRAY", "Engine Crash: ${e.message}")
+                    Log.e("EXHXX_XRAY", "Engine Execute Error: ${e.message}")
                 }
             }.start()
 
-            // إعطاء المحرك ثانية للتحميل قبل فتح النفق
-            Thread.sleep(1000)
+            // إعطاء المحرك ثانية للعمل وفتح بورت 10809
+            Thread.sleep(1500)
 
-            // 2. إنشاء نفق الـ VPN وتوجيهه
+            // 4. إنشاء وتوجيه النفق
             val builder = Builder()
             builder.setSession("Exhxx Xray VLESS")
             builder.addAddress("10.0.0.2", 32)
             builder.addRoute("0.0.0.0", 0)
             builder.addDnsServer("1.1.1.1")
 
-            // السر الهندسي: إجبار نظام الأندرويد على إرسال بيانات الـ VPN إلى بورت المحرك
+            // ربط الإنترنت بالمحرك مباشرة (خدعة أندرويد 10+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 builder.setHttpProxy(ProxyInfo.buildDirectProxy("127.0.0.1", 10809))
             }
 
             builder.addDisallowedApplication(packageName)
             vpnInterface = builder.establish()
-            Log.d("EXHXX_XRAY", "TUN Interface created and routed to HTTP Proxy!")
+            Log.d("EXHXX_XRAY", "TUN Interface created and routed to Native Engine!")
 
         } catch (e: Exception) {
             Log.e("EXHXX_XRAY", "Error starting VPN: ${e.message}")
@@ -63,7 +79,7 @@ class XrayVpnService : VpnService() {
 
     private fun stopVpn() {
         try {
-            Libv2ray.stopV2Ray()
+            xrayProcess?.destroy() // قتل المحرك عند إيقاف الـ VPN
             vpnInterface?.close()
             vpnInterface = null
             Log.d("EXHXX_XRAY", "VPN Stopped")

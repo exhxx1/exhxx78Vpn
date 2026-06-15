@@ -32,30 +32,65 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   static const platform = MethodChannel('com.exhxx.xray_vpn/channel');
-  
+
   bool isConnected = false;
   String currentIp = "Unknown";
   String configJson = "";
 
+  // الكونفيغ المخصص والخاص بسيرفراتك (مع الـ HTTP/78 2026 والـ ID المخصص)
   final String defaultVlessConfig = '''
   {
     "inbounds": [{
       "port": 10808,
-      "protocol": "socks",
-      "settings": { "auth": "noauth", "udp": true }
-    }],
-    "outbounds": [{
-      "protocol": "vless",
+      "protocol": "tun",
       "settings": {
-        "vnext": [{ "address": "server.ip", "port": 443, "users": [{"id": "uuid", "encryption": "none"}] }]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "tcpSettings": { "header": { "type": "http", "request": { "path": ["/"] } } }
-      },
-      "mux": { "enabled": false }
+        "network": "tcp,udp"
+      }
     }],
-    "dns": { "servers": ["1.1.1.1"] },
+    "outbounds": [
+      {
+        "tag": "proxy",
+        "protocol": "vless",
+        "settings": {
+          "vnext": [
+            {
+              "address": "51.254.130.47",
+              "port": 80,
+              "users": [
+                {
+                  "id": "@exhxx78",
+                  "encryption": "none",
+                  "level": 0
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "none",
+          "tcpSettings": {
+            "header": {
+              "type": "http",
+              "request": {
+                "version": "1.1",
+                "method": "HTTP/78 2026",
+                "path": ["/"],
+                "headers": {
+                  "Host": ["51.254.130.47"],
+                  "User-Agent": [
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+                  ],
+                  "Accept-Encoding": ["gzip, deflate"],
+                  "Connection": ["keep-alive"],
+                  "Pragma": "no-cache"
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
     "routing": { "domainStrategy": "AsIs", "rules": [] }
   }
   ''';
@@ -106,7 +141,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               color: isConnected ? Colors.tealAccent : Colors.grey,
             ),
             const SizedBox(height: 20),
-            Text(isConnected ? 'متصل 🟢' : 'غير متصل 🔴', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(isConnected ? 'متصل 🟢' : 'غير متصل  🔴', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Text("IP: $currentIp", style: const TextStyle(color: Colors.grey, fontSize: 16)),
             const SizedBox(height: 50),

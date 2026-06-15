@@ -1,0 +1,49 @@
+name: Build Exhxx Xray VPN (Flutter)
+on:
+  push:
+    branches: [ "main", "master" ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        
+    - name: Scaffold Flutter Project 🚀
+      run: |
+        flutter create vpn_app --org com.exhxx --project-name xray_vpn
+        cd vpn_app
+        flutter pub add file_picker
+        
+    - name: Inject Exhxx Custom Native Code 💉
+      run: |
+        cp custom/lib/main.dart vpn_app/lib/main.dart
+        
+        # حقن أكواد الكوتلن
+        mkdir -p vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn
+        cp custom/android/MainActivity.kt vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn/
+        cp custom/android/XrayVpnService.kt vpn_app/android/app/src/main/kotlin/com/exhxx/xray_vpn/
+        
+        # حقن ملف التصاريح
+        cp custom/android/AndroidManifest.xml vpn_app/android/app/src/main/
+        
+    - name: Build APK with Flutter
+      run: |
+        cd vpn_app
+        flutter build apk --release
+        
+    - name: Upload Exhxx Xray APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Exhxx-Xray-Client
+        path: vpn_app/build/app/outputs/flutter-apk/app-release.apk

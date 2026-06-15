@@ -37,14 +37,15 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   String currentIp = "Unknown";
   String configJson = "";
 
-  // الكونفيغ المخصص والخاص بسيرفراتك (مع الـ HTTP/78 2026 والـ ID المخصص)
+  // الكونفيغ المخصص مالتك مع Inbound من نوع HTTP لسهولة ربطه بالنفق
   final String defaultVlessConfig = '''
   {
     "inbounds": [{
-      "port": 10808,
-      "protocol": "tun",
+      "port": 10809,
+      "listen": "127.0.0.1",
+      "protocol": "http",
       "settings": {
-        "network": "tcp,udp"
+        "allowTransparent": false
       }
     }],
     "outbounds": [
